@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# Secrets / personal
+.env
+.env.local
+*.key
+secrets/
+bookings/
+*.pdf
