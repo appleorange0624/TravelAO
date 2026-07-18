@@ -86,11 +86,14 @@ See [PROJECT-FLOW.md](./PROJECT-FLOW.md).
 
 ## GitHub
 
-Repo should be published as **TravelAO** under the user’s GitHub account.  
-If push fails with auth errors, run:
+**Live repo:** https://github.com/appleorange0624/TravelAO  
+
+Remote: `origin` → `https://github.com/appleorange0624/TravelAO.git` (branch `main`).
+
+If push fails later:
 
 ```bash
 gh auth login -h github.com
 cd ~/Projects/TravelAO
-gh repo create TravelAO --public --source=. --remote=origin --push
+git push -u origin main
 ```
