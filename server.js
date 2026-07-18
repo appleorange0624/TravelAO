@@ -2,7 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { marked } from "marked";
 
 dotenv.config();
@@ -14,13 +14,15 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-const apiKey = process.env.ANTHROPIC_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  console.warn("\n  ⚠  ANTHROPIC_API_KEY not set.");
-  console.warn("     Copy .env.example to .env and add your key (https://console.anthropic.com/).\n");
+  console.warn("\n  ⚠  GEMINI_API_KEY not set.");
+  console.warn("     Get a free key at https://aistudio.google.com/apikey");
+  console.warn("     Copy .env.example to .env and paste it in.\n");
 }
 
-const client = apiKey ? new Anthropic({ apiKey }) : null;
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 function buildPrompt(input) {
   const { relationship, groupSize, dates, budget, purpose, destination, notes } = input;
@@ -37,8 +39,8 @@ Produce a complete day-by-day travel plan in Markdown using this structure:
 8. Practical Notes — visas, weather, packing, reservations to book now
 
 Match every recommendation to the relationship and purpose. Give real venue
-and neighborhood names. Keep it skimmable. If the destination is "suggest",
-pick 2–3 that fit and let the user choose, then plan for the best fit.
+and neighborhood names. Keep it skimmable. If the destination is "suggest"
+or blank, pick 2–3 that fit and let the user choose, then plan for the best fit.
 
 Trip details:
 - Relationship: ${relationship || "(ask if missing)"}
@@ -53,22 +55,19 @@ Generate the full plan now.`;
 }
 
 app.post("/api/plan", async (req, res) => {
-  if (!client) {
+  if (!ai) {
     return res.status(500).json({
-      error: "ANTHROPIC_API_KEY is not configured. Copy .env.example to .env and add your key.",
+      error: "GEMINI_API_KEY is not configured. Get a free key at https://aistudio.google.com/apikey then copy .env.example to .env.",
     });
   }
   try {
     const prompt = buildPrompt(req.body || {});
-    const msg = await client.messages.create({
-      model: process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20241022",
-      max_tokens: 4096,
-      messages: [{ role: "user", content: prompt }],
+    const response = await ai.models.generateContent({
+      model: MODEL,
+      contents: prompt,
     });
-    const text = msg.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
+    const text = response.text || "";
+    if (!text) throw new Error("Empty response from Gemini");
     res.json({ plan: text, html: marked.parse(text) });
   } catch (err) {
     console.error("Plan error:", err);
@@ -76,7 +75,7 @@ app.post("/api/plan", async (req, res) => {
   }
 });
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, hasKey: !!client }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, hasKey: !!ai, model: MODEL }));
 
 app.listen(PORT, () => {
   console.log(`\n  TravelAO running → http://localhost:${PORT}\n`);

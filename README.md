@@ -11,23 +11,28 @@ Built to run with [Claude Code](https://code.claude.com/).
 You have two ways to use TravelAO: a **web UI** (recommended) or the
 **Claude Code CLI**.
 
-### Option A — Web UI (recommended)
+### Option A — Web UI (recommended, free with Google Gemini)
 
 1. Install dependencies:
    ```bash
    cd ~/Projects/TravelAO
    npm install
    ```
-2. Add your Anthropic API key (get one at <https://console.anthropic.com/>):
+2. Get a **free** Gemini API key at <https://aistudio.google.com/apikey>
+   (free tier: 15 requests/min, 1500/day — plenty for trip planning).
+3. Add the key:
    ```bash
    cp .env.example .env
-   # then edit .env and paste your key
+   # then edit .env and paste your GEMINI_API_KEY
    ```
-3. Start the server:
+4. Start the server:
    ```bash
    npm start
    ```
-4. Open <http://localhost:3000>, fill in the form, and click **Generate plan**.
+5. Open <http://localhost:3000>, fill in the form, and click **Generate plan**.
+
+> No credit card needed for the free tier. Google gives you a generous free
+> quota — a typical trip plan uses one request.
 
 ### Option B — Claude Code CLI
 
@@ -67,18 +72,18 @@ Every plan includes:
 | Path                                  | Purpose                              |
 |---------------------------------------|--------------------------------------|
 | `CLAUDE.md`                           | Project instructions read at startup |
-| `server.js`                           | Express server + Anthropic API call  |
+| `server.js`                           | Express server + Google Gemini API call |
 | `public/index.html`                   | Web UI form                          |
 | `public/style.css`                    | UI styling                           |
 | `public/app.js`                       | Frontend logic                       |
 | `.claude/skills/plan-trip/SKILL.md`   | The planning workflow skill (CLI)    |
 | `prompts/plan-trip.md`                | Reusable prompt template             |
 | `examples/example-plan.md`            | Sample output for reference          |
-| `.env.example`                         | API key template — copy to `.env`    |
+| `.env.example`                         | `GEMINI_API_KEY` template — copy to `.env` |
 
 ## Notes
 
-- The web UI calls the Anthropic API directly from the server using your
-  `ANTHROPIC_API_KEY` (kept in `.env`, gitignored). Never commit your key.
-- The CLI path uses Claude Code's own auth — no API key needed in the repo.
+- The web UI calls the **Google Gemini** API (free tier) using your
+  `GEMINI_API_KEY` (kept in `.env`, gitignored). Never commit your key.
+- The CLI path uses Claude Code's own auth — no API key needed.
 - Don't commit personal travel documents or booking confirmations.
