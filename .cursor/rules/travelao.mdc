@@ -1,0 +1,26 @@
+---
+description: TravelAO trip planner — preferences and offline-first flow
+alwaysApply: true
+---
+
+# TravelAO
+
+Project path: `~/Projects/TravelAO`.
+
+## Product
+Trip planner for **couple / friends / family**. Inputs: relationship, dates, budget, purpose (+ optional destination/notes). Output: full plan (transport, hotels, itinerary, restaurants, sights, budget, practical notes).
+
+## Default mode: offline, no API key
+The web UI must work **without any API key**. Plans are generated in-browser by `public/planner.js` (`generatePlan`). Do not make cloud LLM keys required again unless the user explicitly asks for an optional LLM toggle.
+
+## Docs to read on resume
+- `docs/SESSION.md` — handoff
+- `docs/PREFERENCES.md` — decisions
+- `docs/PROJECT-FLOW.md` — architecture
+
+## Run
+`cd ~/Projects/TravelAO && npm start` → http://localhost:3000
+
+## Do not
+- Commit `.env`, API keys, or personal booking files
+- Break the offline Generate plan path

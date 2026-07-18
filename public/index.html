@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TravelAO — AI Trip Planner</title>
+  <title>TravelAO — Trip Planner</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -17,6 +17,7 @@
         <span class="brand-name">TravelAO</span>
       </div>
       <p class="tagline">Tell us about your trip — get a complete plan in seconds.</p>
+      <p class="hero-sub">Works offline · no API key · no signup</p>
     </div>
   </header>
 
@@ -86,16 +87,17 @@
         <div class="placeholder">
           <div class="placeholder-icon">🗺</div>
           <h3>Your itinerary will appear here</h3>
-          <p>Fill in the form and hit <strong>Generate plan</strong>.</p>
+          <p>Fill in the form and hit <strong>Generate plan</strong>. No API key needed.</p>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p>TravelAO · built with Google Gemini · <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">get a free API key</a></p>
+    <p>TravelAO · offline planner · no API key · build offline1</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script type="module" src="app.js?v=offline1"></script>
 </body>
 </html>

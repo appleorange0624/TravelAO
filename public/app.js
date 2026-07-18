@@ -1,3 +1,5 @@
+import { generatePlan } from "./planner.js?v=offline1";
+
 const form = document.getElementById("trip-form");
 const result = document.getElementById("result");
 const submitBtn = document.getElementById("submit-btn");
@@ -28,19 +30,15 @@ form.addEventListener("submit", async (e) => {
   result.innerHTML = `
     <div class="loading-state">
       <span class="spinner"></span>
-      <p>Planning your trip… this can take 15–30 seconds.</p>
+      <p>Building your trip plan…</p>
     </div>`;
 
   try {
-    const res = await fetch("/api/plan", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || "Request failed");
-    lastPlanText = json.plan;
-    result.innerHTML = json.html;
+    await new Promise((r) => requestAnimationFrame(() => r()));
+    const text = generatePlan(data);
+    if (!text) throw new Error("Empty plan");
+    lastPlanText = text;
+    result.innerHTML = window.marked ? window.marked.parse(text) : `<pre>${escapeHtml(text)}</pre>`;
     copyBtn.disabled = false;
     printBtn.disabled = false;
   } catch (err) {
