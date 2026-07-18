@@ -8,6 +8,29 @@ Built to run with [Claude Code](https://code.claude.com/).
 
 ## Setup (one time)
 
+You have two ways to use TravelAO: a **web UI** (recommended) or the
+**Claude Code CLI**.
+
+### Option A — Web UI (recommended)
+
+1. Install dependencies:
+   ```bash
+   cd ~/Projects/TravelAO
+   npm install
+   ```
+2. Add your Anthropic API key (get one at <https://console.anthropic.com/>):
+   ```bash
+   cp .env.example .env
+   # then edit .env and paste your key
+   ```
+3. Start the server:
+   ```bash
+   npm start
+   ```
+4. Open <http://localhost:3000>, fill in the form, and click **Generate plan**.
+
+### Option B — Claude Code CLI
+
 1. Install Claude Code (already done on this Mac):
    ```bash
    npm install -g @anthropic-ai/claude-code@latest
@@ -16,29 +39,15 @@ Built to run with [Claude Code](https://code.claude.com/).
    ```bash
    claude
    ```
-   Follow the prompt to authenticate with your Anthropic account.
-
-## Use
-
-```bash
-cd ~/Projects/TravelAO
-claude
-```
-
-Then either run the skill:
-
-```
-/skill plan-trip
-```
-
-…or just describe your trip:
-
-```
-Plan a 4-day couple trip to Kyoto, Oct 10–13, budget $2500, purpose: anniversary
-```
-
-Claude will ask for anything missing (relationship, dates, budget, purpose)
-and then produce the plan.
+3. Run the planner:
+   ```bash
+   cd ~/Projects/TravelAO
+   claude
+   ```
+   Then either run the skill `/skill plan-trip`, or just describe the trip:
+   ```
+   Plan a 4-day couple trip to Kyoto, Oct 10–13, budget $2500, purpose: anniversary
+   ```
 
 ## What You Get
 
@@ -58,13 +67,18 @@ Every plan includes:
 | Path                                  | Purpose                              |
 |---------------------------------------|--------------------------------------|
 | `CLAUDE.md`                           | Project instructions read at startup |
-| `.claude/skills/plan-trip/SKILL.md`   | The planning workflow skill          |
-| `prompts/plan-trip.md`                | Reusable prompt template            |
+| `server.js`                           | Express server + Anthropic API call  |
+| `public/index.html`                   | Web UI form                          |
+| `public/style.css`                    | UI styling                           |
+| `public/app.js`                       | Frontend logic                       |
+| `.claude/skills/plan-trip/SKILL.md`   | The planning workflow skill (CLI)    |
+| `prompts/plan-trip.md`                | Reusable prompt template             |
 | `examples/example-plan.md`            | Sample output for reference          |
+| `.env.example`                         | API key template — copy to `.env`    |
 
 ## Notes
 
-- No API keys are stored in this repo. Plans are generated from Claude's
-  own knowledge. If you want live pricing/flights later, add an MCP server
-  rather than embedding keys here.
+- The web UI calls the Anthropic API directly from the server using your
+  `ANTHROPIC_API_KEY` (kept in `.env`, gitignored). Never commit your key.
+- The CLI path uses Claude Code's own auth — no API key needed in the repo.
 - Don't commit personal travel documents or booking confirmations.
