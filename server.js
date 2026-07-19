@@ -2,29 +2,9 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
 import { marked } from "marked";
 
 dotenv.config();
-
-// #region agent log
-function dbg(message, data, hypothesisId) {
-  const payload = {
-    sessionId: "1df0bd",
-    runId: "run1",
-    hypothesisId: hypothesisId || "H0",
-    location: "server.js",
-    message,
-    data: data || {},
-    timestamp: Date.now(),
-  };
-  fetch("http://127.0.0.1:7461/ingest/c39dab69-e21f-4382-8c06-10846ac5193a", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "1df0bd" },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
-}
-// #endregion
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -33,29 +13,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
-// H1: env var name mismatch — accept both GEMINI_API_KEY and GOOGLE_API_KEY
-const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-const keySource = process.env.GEMINI_API_KEY ? "GEMINI_API_KEY" : process.env.GOOGLE_API_KEY ? "GOOGLE_API_KEY" : null;
-
-// #region agent log
-dbg("env loaded", {
-  hasGeminiKey: !!process.env.GEMINI_API_KEY,
-  hasGoogleKey: !!process.env.GOOGLE_API_KEY,
-  keySource,
-  keyLen: apiKey ? apiKey.length : 0,
-  keyPrefix: apiKey ? apiKey.slice(0, 4) : null,
-  rawEnvVarNames: Object.keys(process.env).filter((k) => k.includes("API") || k.includes("KEY") || k.includes("GEMINI") || k.includes("GOOGLE")),
-}, "H1");
-// #endregion
-
-if (!apiKey) {
-  console.warn("\n  ⚠  GEMINI_API_KEY (or GOOGLE_API_KEY) not set.");
-  console.warn("     Get a free key at https://aistudio.google.com/apikey");
-  console.warn("     Copy .env.example to .env and paste it in.\n");
-}
-
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const ENV_KEY = process.env.DEEPSEEK_API_KEY || "";
+const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-chat";
+const DEEPSEEK_URL = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/chat/completions";
 
 function buildPrompt(input) {
   const { relationship, groupSize, dates, budget, purpose, destination, notes } = input;
@@ -74,6 +34,7 @@ Produce a complete day-by-day travel plan in Markdown using this structure:
 Match every recommendation to the relationship and purpose. Give real venue
 and neighborhood names. Keep it skimmable. If the destination is "suggest"
 or blank, pick 2–3 that fit and let the user choose, then plan for the best fit.
+You may reply in the same language the user used in their notes/purpose if clearly Chinese; otherwise use English.
 
 Trip details:
 - Relationship: ${relationship || "(ask if missing)"}
@@ -87,47 +48,63 @@ Trip details:
 Generate the full plan now.`;
 }
 
+app.get("/api/health", (_req, res) => {
+  res.json({
+    ok: true,
+    provider: "deepseek",
+    hasEnvKey: !!ENV_KEY,
+    model: MODEL,
+  });
+});
+
 app.post("/api/plan", async (req, res) => {
-  // #region agent log
-  dbg("/api/plan called", { hasAi: !!ai, model: MODEL, bodyKeys: Object.keys(req.body || {}), relationship: req.body?.relationship }, "H5");
-  // #endregion
-  if (!ai) {
-    // #region agent log
-    dbg("/api/plan rejected — ai is null", { keySource }, "H1");
-    // #endregion
-    return res.status(500).json({
-      error: "GEMINI_API_KEY (or GOOGLE_API_KEY) is not configured. Get a free key at https://aistudio.google.com/apikey then copy .env.example to .env.",
+  const body = req.body || {};
+  const apiKey = (body.apiKey || ENV_KEY || "").trim();
+  if (!apiKey) {
+    return res.status(400).json({
+      error: "DeepSeek API key missing. Get one at https://platform.deepseek.com then paste it in the UI or set DEEPSEEK_API_KEY in .env",
     });
   }
+
   try {
-    const prompt = buildPrompt(req.body || {});
-    // #region agent log
-    dbg("calling generateContent", { model: MODEL, promptLen: prompt.length }, "H5");
-    // #endregion
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: prompt,
+    const prompt = buildPrompt(body);
+    const response = await fetch(DEEPSEEK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: body.model || MODEL,
+        messages: [
+          { role: "system", content: "You are TravelAO, a careful, practical travel planner." },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
+      }),
     });
-    const text = response.text || "";
-    // #region agent log
-    dbg("generateContent returned", { textLen: text.length, textPrefix: text.slice(0, 60) }, "H5");
-    // #endregion
-    if (!text) throw new Error("Empty response from Gemini");
-    res.json({ plan: text, html: marked.parse(text) });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const msg = json?.error?.message || json?.message || `HTTP ${response.status}`;
+      return res.status(response.status).json({ error: `DeepSeek error: ${msg}` });
+    }
+
+    const text = json?.choices?.[0]?.message?.content || "";
+    if (!text) {
+      return res.status(500).json({ error: "Empty response from DeepSeek" });
+    }
+    res.json({ plan: text, html: marked.parse(text), provider: "deepseek" });
   } catch (err) {
-    // #region agent log
-    dbg("generateContent ERROR", { name: err.name, message: err.message, stack: err.stack?.split("\n").slice(0, 3).join(" | ") }, "H2");
-    // #endregion
-    console.error("Plan error:", err);
-    res.status(500).json({ error: err.message || "Failed to generate plan" });
+    console.error("DeepSeek plan error:", err);
+    res.status(500).json({
+      error: err.message || "Failed to reach DeepSeek. Check network / VPN if needed.",
+    });
   }
 });
 
-app.get("/api/health", (_req, res) => res.json({ ok: true, hasKey: !!ai, model: MODEL, keySource }));
-
 app.listen(PORT, () => {
-  // #region agent log
-  dbg("server started", { port: PORT, hasAi: !!ai, model: MODEL, keySource }, "H3");
-  // #endregion
-  console.log(`\n  TravelAO running → http://localhost:${PORT}\n`);
+  console.log(`\n  TravelAO running → http://localhost:${PORT}`);
+  console.log(`  Offline planner: always available`);
+  console.log(`  DeepSeek: ${ENV_KEY ? "env key loaded" : "paste key in UI or set DEEPSEEK_API_KEY"}\n`);
 });

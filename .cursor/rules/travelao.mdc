@@ -10,8 +10,8 @@ Project path: `~/Projects/TravelAO`.
 ## Product
 Trip planner for **couple / friends / family**. Inputs: relationship, dates, budget, purpose (+ optional destination/notes). Output: full plan (transport, hotels, itinerary, restaurants, sights, budget, practical notes).
 
-## Default mode: offline, no API key
-The web UI must work **without any API key**. Plans are generated in-browser by `public/planner.js` (`generatePlan`). Do not make cloud LLM keys required again unless the user explicitly asks for an optional LLM toggle.
+## Default mode: offline; optional DeepSeek
+The web UI must work **without any API key** via `public/planner.js`. Optional **DeepSeek** mode uses `DEEPSEEK_API_KEY` / UI key and `POST /api/plan`. User is in China — prefer DeepSeek over OpenRouter/Groq/Gemini.
 
 ## Docs to read on resume
 - `docs/SESSION.md` — handoff

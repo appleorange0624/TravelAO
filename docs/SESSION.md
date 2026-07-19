@@ -37,18 +37,18 @@ Output: a full day-by-day plan with:
 
 ## Current working mode (IMPORTANT)
 
-**Offline / no API key.**
+**Offline default + optional DeepSeek.**
 
-After trying Claude Code → Anthropic API → Gemini → Groq → OpenRouter, the user could not reliably get/use cloud API keys (Gemini quota/model issues; Groq/OpenRouter signup blocked).
+User is in **China**. OpenRouter/Groq/Gemini were blocked or unreliable. **DeepSeek** is the chosen cloud provider.
 
-**Decision:** generate plans **in the browser** with coded destination knowledge (`public/planner.js`). No API key, no signup.
+- UI: `http://localhost:3000`
+- Mode selector: **Offline** (default) | **DeepSeek AI**
+- Offline engine: `public/planner.js` → `generatePlan(input)`
+- DeepSeek: `POST /api/plan` in `server.js` → `https://api.deepseek.com/chat/completions`
+- Key: paste in UI or set `DEEPSEEK_API_KEY` in `.env`
+- Footer build tag: `build deepseek1`
 
-- UI: `http://localhost:3000` (Express serves `public/`)
-- Engine: `public/planner.js` → `generatePlan(input)`
-- Frontend: `public/app.js` (ES module) + `public/index.html`
-- Footer build tag: `build offline1`
-
-Built-in destinations: Kyoto, Tokyo, Paris, Bali, NYC, Barcelona + generic fallback.
+Built-in offline destinations: Kyoto, Tokyo, Paris, Bali, NYC, Barcelona + generic fallback.
 
 ---
 

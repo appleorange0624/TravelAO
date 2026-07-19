@@ -31,14 +31,16 @@ TravelAO/
 
 ```
 Browser form submit
-    → public/app.js collects fields
-    → import generatePlan from planner.js
-    → Markdown string built locally
-    → marked.parse → result panel
-    → Copy / Print actions
+  ├─ mode=offline
+  │     → planner.js generatePlan()
+  │     → marked.parse → result panel
+  └─ mode=deepseek
+        → POST /api/plan { …fields, apiKey }
+        → server.js → DeepSeek chat/completions
+        → Markdown plan → result panel
 ```
 
-Server role: **static file host only** for the offline UI (`express.static('public')`).
+Server: static host + DeepSeek `/api/plan` proxy (avoids browser CORS).
 
 ## CLI flow (optional)
 

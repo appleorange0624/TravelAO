@@ -1,8 +1,11 @@
 # TravelAO
 
-Offline trip planner for **couples, friends, and family**. Enter relationship, dates, budget, and purpose — get a full day-by-day plan (transport, hotels, restaurants, sights, budget breakdown).
+Trip planner for **couples, friends, and family**. Enter relationship, dates, budget, and purpose — get a full day-by-day plan (transport, hotels, restaurants, sights, budget breakdown).
 
-**No API key. No signup.** Plans are generated in your browser.
+**Two modes:**
+
+1. **Offline** (default) — no API key, works immediately  
+2. **DeepSeek AI** — richer plans; get a key at [platform.deepseek.com](https://platform.deepseek.com) (works well from China)
 
 ## Quick start
 
@@ -14,6 +17,15 @@ npm start
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Optional: DeepSeek via `.env`
+
+```bash
+cp .env.example .env
+# paste DEEPSEEK_API_KEY=sk-...
+```
+
+You can also paste the key in the UI when DeepSeek mode is selected (remembered in the browser).
+
 ## What you get
 
 - Overview tailored to relationship + purpose  
@@ -24,7 +36,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - Budget breakdown  
 - Practical notes  
 
-Built-in destinations: Kyoto, Tokyo, Paris, Bali, NYC, Barcelona (plus a generic plan for other cities). Leave destination blank to get suggestions.
+Offline destinations: Kyoto, Tokyo, Paris, Bali, NYC, Barcelona (+ generic fallback). DeepSeek can plan any destination.
 
 ## Docs (for continuing later)
 

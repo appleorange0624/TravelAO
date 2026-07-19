@@ -19,9 +19,10 @@ Remember these when continuing work on this project.
 | Google Gemini free tier | Key format `AQ.…` worked for ListModels; generateContent hit 429/404/503 on free models |
 | Groq | User could not obtain API key |
 | OpenRouter | User could not obtain API key |
-| **Offline coded planner** | **Current default — keep this working** |
+| **Offline coded planner** | **Default — always keep working** |
+| **DeepSeek (China-friendly)** | **Optional AI mode** — key from platform.deepseek.com |
 
-Preference: **works with zero signup**. Cloud LLM may return later as optional, not required.
+Preference: **offline works with zero signup**. DeepSeek is optional for richer AI plans (good for China). Do not require DeepSeek to use the app.
 
 ## Plan content rules
 

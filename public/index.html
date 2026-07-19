@@ -17,7 +17,7 @@
         <span class="brand-name">TravelAO</span>
       </div>
       <p class="tagline">Tell us about your trip — get a complete plan in seconds.</p>
-      <p class="hero-sub">Works offline · no API key · no signup</p>
+      <p class="hero-sub">Offline by default · optional DeepSeek AI</p>
     </div>
   </header>
 
@@ -25,6 +25,22 @@
     <section class="form-card" aria-label="Trip details">
       <h2>Plan your trip</h2>
       <form id="trip-form" class="form">
+        <div class="field full">
+          <label for="mode">Planner mode</label>
+          <select id="mode" name="mode">
+            <option value="offline">Offline (no API key)</option>
+            <option value="deepseek">DeepSeek AI</option>
+          </select>
+        </div>
+
+        <div id="deepseek-fields" class="field full apikey-field" hidden>
+          <label for="apiKey">DeepSeek API key <span class="muted">(<a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>)</span></label>
+          <input id="apiKey" name="apiKey" type="password" placeholder="sk-…" autocomplete="off" />
+          <label class="remember">
+            <input id="rememberKey" type="checkbox" checked /> Remember key on this device
+          </label>
+        </div>
+
         <div class="field">
           <label for="relationship">Relationship</label>
           <select id="relationship" name="relationship" required>
@@ -87,17 +103,17 @@
         <div class="placeholder">
           <div class="placeholder-icon">🗺</div>
           <h3>Your itinerary will appear here</h3>
-          <p>Fill in the form and hit <strong>Generate plan</strong>. No API key needed.</p>
+          <p>Use <strong>Offline</strong> anytime, or switch to <strong>DeepSeek AI</strong> for richer plans.</p>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p>TravelAO · offline planner · no API key · build offline1</p>
+    <p>TravelAO · offline + DeepSeek · build deepseek1</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script type="module" src="app.js?v=offline1"></script>
+  <script type="module" src="app.js?v=deepseek1"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-import { generatePlan } from "./planner.js?v=offline1";
+import { generatePlan } from "./planner.js?v=deepseek1";
 
 const form = document.getElementById("trip-form");
 const result = document.getElementById("result");
@@ -8,8 +8,38 @@ const spinner = submitBtn.querySelector(".spinner");
 const errorEl = document.getElementById("error");
 const copyBtn = document.getElementById("copy-btn");
 const printBtn = document.getElementById("print-btn");
+const modeSelect = document.getElementById("mode");
+const deepseekFields = document.getElementById("deepseek-fields");
+const apiKeyInput = document.getElementById("apiKey");
+const rememberKey = document.getElementById("rememberKey");
+
+const KEY_STORAGE = "travelao_deepseek_key";
+const MODE_STORAGE = "travelao_mode";
 
 let lastPlanText = "";
+
+const savedKey = localStorage.getItem(KEY_STORAGE);
+if (savedKey) apiKeyInput.value = savedKey;
+const savedMode = localStorage.getItem(MODE_STORAGE);
+if (savedMode === "deepseek" || savedMode === "offline") modeSelect.value = savedMode;
+
+function syncModeUI() {
+  const deepseek = modeSelect.value === "deepseek";
+  deepseekFields.hidden = !deepseek;
+  localStorage.setItem(MODE_STORAGE, modeSelect.value);
+}
+
+modeSelect.addEventListener("change", syncModeUI);
+syncModeUI();
+
+apiKeyInput.addEventListener("change", () => {
+  if (rememberKey.checked) localStorage.setItem(KEY_STORAGE, apiKeyInput.value.trim());
+  else localStorage.removeItem(KEY_STORAGE);
+});
+rememberKey.addEventListener("change", () => {
+  if (rememberKey.checked) localStorage.setItem(KEY_STORAGE, apiKeyInput.value.trim());
+  else localStorage.removeItem(KEY_STORAGE);
+});
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -26,19 +56,35 @@ form.addEventListener("submit", async (e) => {
     notes: form.notes.value.trim(),
   };
 
+  const mode = modeSelect.value;
   setLoading(true);
   result.innerHTML = `
     <div class="loading-state">
       <span class="spinner"></span>
-      <p>Building your trip plan…</p>
+      <p>${mode === "deepseek" ? "Asking DeepSeek… usually 10–30 seconds." : "Building your trip plan…"}</p>
     </div>`;
 
   try {
-    await new Promise((r) => requestAnimationFrame(() => r()));
-    const text = generatePlan(data);
-    if (!text) throw new Error("Empty plan");
+    let text;
+    if (mode === "deepseek") {
+      const apiKey = apiKeyInput.value.trim();
+      if (rememberKey.checked && apiKey) localStorage.setItem(KEY_STORAGE, apiKey);
+      const res = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, apiKey }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
+      text = json.plan;
+      result.innerHTML = json.html || (window.marked ? window.marked.parse(text) : `<pre>${escapeHtml(text)}</pre>`);
+    } else {
+      await new Promise((r) => requestAnimationFrame(() => r()));
+      text = generatePlan(data);
+      if (!text) throw new Error("Empty plan");
+      result.innerHTML = window.marked ? window.marked.parse(text) : `<pre>${escapeHtml(text)}</pre>`;
+    }
     lastPlanText = text;
-    result.innerHTML = window.marked ? window.marked.parse(text) : `<pre>${escapeHtml(text)}</pre>`;
     copyBtn.disabled = false;
     printBtn.disabled = false;
   } catch (err) {
