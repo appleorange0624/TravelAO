@@ -2,7 +2,7 @@
 
 Trip planner for **couples, friends, and family**. Enter relationship, dates, budget, and purpose — get a full day-by-day plan with photos, booking links, and a day summary.
 
-**Live app:** https://travelao.onrender.com *(after deploy)*
+**Live app:** https://travelao.onrender.com
 
 **Three modes:**
 
