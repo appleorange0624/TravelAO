@@ -1,7 +1,7 @@
 {
   "name": "travelao",
-  "version": "1.1.0",
-  "description": "Trip planner for couple, friend, and family trips — offline + optional DeepSeek",
+  "version": "1.2.0",
+  "description": "Trip planner — web research (Wikivoyage/Wikipedia) + offline templates, no API keys",
   "type": "module",
   "main": "server.js",
   "scripts": {

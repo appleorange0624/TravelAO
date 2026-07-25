@@ -2,9 +2,10 @@
 
 Use this file to continue work if the chat session is lost.
 
-**Last updated:** 2026-07-17  
+**Last updated:** 2026-07-25  
 **Local path:** `~/Projects/TravelAO`  
-**Branch:** `main`
+**Branch:** `main`  
+**Live URL:** https://travelao.onrender.com *(Render — set OPENROUTER_API_KEY in dashboard)*
 
 ---
 
@@ -37,18 +38,16 @@ Output: a full day-by-day plan with:
 
 ## Current working mode (IMPORTANT)
 
-**Offline default + optional DeepSeek.**
+**OpenRouter AI + web research + offline fallback.**
 
-User is in **China**. OpenRouter/Groq/Gemini were blocked or unreliable. **DeepSeek** is the chosen cloud provider.
-
-- UI: `http://localhost:3000`
-- Mode selector: **Offline** (default) | **DeepSeek AI**
+- UI local: `http://localhost:3000`
+- UI online: `https://travelao.onrender.com` (Render free tier)
+- Modes: **AI (OpenRouter)** | **Web research** | **Offline**
+- Rich UI: photos, booking links, day summary, EN/中文
+- Key: `OPENROUTER_API_KEY` in `.env` (local) or Render env vars (online)
 - Offline engine: `public/planner.js` → `generatePlan(input)`
-- DeepSeek: `POST /api/plan` in `server.js` → `https://api.deepseek.com/chat/completions`
-- Key: paste in UI or set `DEEPSEEK_API_KEY` in `.env`
-- Footer build tag: `build deepseek1`
-
-Built-in offline destinations: Kyoto, Tokyo, Paris, Bali, NYC, Barcelona + generic fallback.
+- Research: `public/research.js` → Wikivoyage + Wikipedia
+- AI: `POST /api/ai-plan` in `server.js` → OpenRouter
 
 ---
 

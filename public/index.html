@@ -12,78 +12,82 @@
 <body>
   <header class="hero">
     <div class="hero-inner">
-      <div class="brand">
-        <span class="logo">✈</span>
-        <span class="brand-name">TravelAO</span>
+      <div class="brand-row">
+        <div class="brand">
+          <span class="logo">✈</span>
+          <span class="brand-name">TravelAO</span>
+        </div>
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="en">English</button>
+          <button type="button" class="lang-btn" data-lang="zh">中文</button>
+        </div>
       </div>
       <p class="tagline">Tell us about your trip — get a complete plan in seconds.</p>
-      <p class="hero-sub">Offline by default · optional DeepSeek AI</p>
+      <p class="hero-sub">Photos · booking links · day-by-day summary · 中文 / English</p>
     </div>
   </header>
 
   <main class="layout">
     <section class="form-card" aria-label="Trip details">
-      <h2>Plan your trip</h2>
+      <h2 data-i18n="planTrip">Plan your trip</h2>
       <form id="trip-form" class="form">
         <div class="field full">
-          <label for="mode">Planner mode</label>
+          <label for="mode" data-i18n="mode">Planner mode</label>
           <select id="mode" name="mode">
-            <option value="offline">Offline (no API key)</option>
-            <option value="deepseek">DeepSeek AI</option>
+            <option value="ai" id="ai-option" hidden data-i18n="ai">AI (OpenRouter)</option>
+            <option value="research" data-i18n="research">Web research</option>
+            <option value="offline" data-i18n="offline">Offline (instant templates)</option>
           </select>
         </div>
 
-        <div id="deepseek-fields" class="field full apikey-field" hidden>
-          <label for="apiKey">DeepSeek API key <span class="muted">(<a href="https://platform.deepseek.com" target="_blank" rel="noopener">platform.deepseek.com</a>)</span></label>
-          <input id="apiKey" name="apiKey" type="password" placeholder="sk-…" autocomplete="off" />
-          <label class="remember">
-            <input id="rememberKey" type="checkbox" checked /> Remember key on this device
-          </label>
+        <div id="model-field" class="field full" hidden>
+          <label for="model" data-i18n="model">AI model</label>
+          <select id="model" name="model"></select>
         </div>
 
         <div class="field">
-          <label for="relationship">Relationship</label>
+          <label for="relationship" data-i18n="relationship">Relationship</label>
           <select id="relationship" name="relationship" required>
-            <option value="">Select…</option>
-            <option value="couple">Couple</option>
-            <option value="friends">Friends</option>
-            <option value="family">Family</option>
+            <option value="" data-i18n="select">Select…</option>
+            <option value="couple" data-i18n="couple">Couple</option>
+            <option value="friends" data-i18n="friends">Friends</option>
+            <option value="family" data-i18n="family">Family</option>
           </select>
         </div>
 
         <div class="field">
-          <label for="groupSize">Group size & ages</label>
-          <input id="groupSize" name="groupSize" type="text" placeholder="e.g. 2 adults, or 2 adults + 2 kids (6, 9)" />
+          <label for="groupSize" data-i18n="groupSize">Group size & ages</label>
+          <input id="groupSize" name="groupSize" type="text" placeholder="e.g. 2 adults" />
         </div>
 
         <div class="field">
-          <label for="dates">Dates</label>
+          <label for="dates" data-i18n="dates">Dates</label>
           <input id="dates" name="dates" type="text" placeholder="e.g. Oct 10 – Oct 13, 2026" required />
         </div>
 
         <div class="field">
-          <label for="budget">Budget</label>
-          <input id="budget" name="budget" type="text" placeholder="e.g. $2500 total for two" required />
+          <label for="budget" data-i18n="budget">Budget</label>
+          <input id="budget" name="budget" type="text" placeholder="e.g. $2500 total" required />
         </div>
 
         <div class="field">
-          <label for="purpose">Main purpose</label>
-          <input id="purpose" name="purpose" type="text" placeholder="e.g. anniversary, relaxation, adventure" required />
+          <label for="purpose" data-i18n="purpose">Main purpose</label>
+          <input id="purpose" name="purpose" type="text" placeholder="e.g. anniversary" required />
         </div>
 
         <div class="field">
-          <label for="destination">Destination <span class="muted">(optional)</span></label>
-          <input id="destination" name="destination" type="text" placeholder="e.g. Kyoto — or leave blank for suggestions" />
+          <label for="destination"><span data-i18n="destination">Destination</span> <span class="muted">(<span data-i18n="optional">optional</span>)</span></label>
+          <input id="destination" name="destination" type="text" placeholder="e.g. Kyoto" />
         </div>
 
         <div class="field full">
-          <label for="notes">Extra notes <span class="muted">(optional)</span></label>
-          <textarea id="notes" name="notes" rows="3" placeholder="Dietary needs, accessibility, must-see sights, etc."></textarea>
+          <label for="notes"><span data-i18n="notes">Extra notes</span> <span class="muted">(<span data-i18n="optional">optional</span>)</span></label>
+          <textarea id="notes" name="notes" rows="3" placeholder="Dietary needs, must-see sights…"></textarea>
         </div>
 
         <div class="actions">
           <button type="submit" id="submit-btn" class="btn-primary">
-            <span class="btn-label">Generate plan</span>
+            <span class="btn-label" data-i18n="generate">Generate plan</span>
             <span class="spinner" hidden></span>
           </button>
         </div>
@@ -93,27 +97,31 @@
 
     <section class="result-card" aria-label="Trip plan">
       <div class="result-header">
-        <h2>Your travel plan</h2>
+        <h2 data-i18n="yourPlan">Your travel plan</h2>
         <div class="result-actions">
-          <button id="copy-btn" class="btn-ghost" disabled>Copy</button>
-          <button id="print-btn" class="btn-ghost" disabled>Print</button>
+          <div class="lang-toggle lang-toggle--compact" role="group" aria-label="Plan language">
+            <button type="button" class="lang-btn active" data-lang="en">EN</button>
+            <button type="button" class="lang-btn" data-lang="zh">中文</button>
+          </div>
+          <button id="copy-btn" class="btn-ghost" disabled data-i18n="copy">Copy</button>
+          <button id="print-btn" class="btn-ghost" disabled data-i18n="print">Print</button>
         </div>
       </div>
       <div id="result" class="result">
         <div class="placeholder">
           <div class="placeholder-icon">🗺</div>
-          <h3>Your itinerary will appear here</h3>
-          <p>Use <strong>Offline</strong> anytime, or switch to <strong>DeepSeek AI</strong> for richer plans.</p>
+          <h3 data-i18n="placeholderTitle">Your itinerary will appear here</h3>
+          <p data-i18n="placeholderBody">Pick a language, fill in your trip, and get photos, booking links, and a day summary.</p>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <p>TravelAO · offline + DeepSeek · build deepseek1</p>
+    <p>TravelAO · rich2 · 中文/EN · photos · booking links · day summary</p>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script type="module" src="app.js?v=deepseek1"></script>
+  <script type="module" src="app.js?v=rich2"></script>
 </body>
 </html>

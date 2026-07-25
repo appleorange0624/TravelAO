@@ -1,13 +1,18 @@
 # TravelAO
 
-Trip planner for **couples, friends, and family**. Enter relationship, dates, budget, and purpose — get a full day-by-day plan (transport, hotels, restaurants, sights, budget breakdown).
+Trip planner for **couples, friends, and family**. Enter relationship, dates, budget, and purpose — get a full day-by-day plan with photos, booking links, and a day summary.
 
-**Two modes:**
+**Live app:** https://travelao.onrender.com *(after deploy)*
 
-1. **Offline** (default) — no API key, works immediately  
-2. **DeepSeek AI** — richer plans; get a key at [platform.deepseek.com](https://platform.deepseek.com) (works well from China)
+**Three modes:**
 
-## Quick start
+1. **AI (OpenRouter)** — richest plans when `OPENROUTER_API_KEY` is set on the server
+2. **Web research** — live Wikivoyage + Wikipedia (no API key)
+3. **Offline** — instant templates, always works
+
+Supports **English** and **中文**.
+
+## Quick start (local)
 
 ```bash
 cd ~/Projects/TravelAO
@@ -17,46 +22,38 @@ npm start
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Optional: DeepSeek via `.env`
+### Optional: OpenRouter via `.env`
 
 ```bash
 cp .env.example .env
-# paste DEEPSEEK_API_KEY=sk-...
+# paste OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
-You can also paste the key in the UI when DeepSeek mode is selected (remembered in the browser).
+## Deploy online (Render)
+
+1. Push this repo to GitHub
+2. Go to [render.com](https://render.com) → **New** → **Blueprint**
+3. Connect repo `appleorange0624/TravelAO`
+4. Add secret env var `OPENROUTER_API_KEY` (optional — offline + research work without it)
+5. Deploy → share the URL (e.g. `https://travelao.onrender.com`)
+
+Free tier may sleep after ~15 min idle; first visit can take ~30s to wake up.
 
 ## What you get
 
-- Overview tailored to relationship + purpose  
-- Transportation  
-- 2–3 hotel options  
-- Daily itinerary  
-- Restaurants & places to visit  
-- Budget breakdown  
-- Practical notes  
+- Overview tailored to relationship + purpose
+- Transportation, hotels, restaurants, sights
+- Day-by-day summary cards with photos & booking links
+- Budget breakdown and practical notes
+- YouTube preview links for your destination
 
-Offline destinations: Kyoto, Tokyo, Paris, Bali, NYC, Barcelona (+ generic fallback). DeepSeek can plan any destination.
-
-## Docs (for continuing later)
+## Docs
 
 | File | Purpose |
 |------|---------|
 | [docs/SESSION.md](docs/SESSION.md) | Session handoff |
 | [docs/PREFERENCES.md](docs/PREFERENCES.md) | Agreed preferences |
 | [docs/PROJECT-FLOW.md](docs/PROJECT-FLOW.md) | Architecture & flow |
-
-## Optional: Claude Code CLI
-
-```bash
-cd ~/Projects/TravelAO
-claude
-# then: /skill plan-trip
-```
-
-## Optional: Gemini server endpoint
-
-`server.js` still has a `/api/plan` Gemini route if you add `GEMINI_API_KEY` to `.env` — the **web UI does not use it** by default (offline planner).
 
 ## License
 

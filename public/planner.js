@@ -326,9 +326,91 @@ function budgetSplit(total, nights, people) {
   };
 }
 
-function dayLabel(i, dates) {
-  return `Day ${i + 1}`;
+function whyHotel(h, input, isTop) {
+  let why = h.why;
+  if (isTop) {
+    if (input.relationship === "couple" || /anniversary|romantic/i.test(input.purpose || "")) {
+      why += `. Especially strong for couples — quiet atmosphere, easy to reach dinner spots, and a good base for ${input.purpose || "your celebration"}.`;
+    } else if (input.relationship === "family") {
+      why += `. Family-friendly location in ${h.area} with practical access to transit and food options.`;
+    } else {
+      why += `. Matches your ${input.purpose || "trip"} goal and keeps you near ${h.area}.`;
+    }
+  }
+  return why;
 }
+
+function whyRestaurant(r, input) {
+  const base = r.note;
+  if (/anniversary|romantic/i.test(input.purpose || "") && r.tier.includes("$")) {
+    return `${base} — worth booking ahead for a special evening.`;
+  }
+  if (input.relationship === "friends" && /fun|lively/i.test(r.note)) {
+    return `${base} — lively vibe that works well for groups.`;
+  }
+  return `${base} — solid pick for ${input.purpose || "sightseeing"} in the area.`;
+}
+
+function whySight(s, input) {
+  if (/anniversary|romantic/i.test(input.purpose || "")) {
+    return `${s.tip} Great photo spot for couples.`;
+  }
+  if (input.relationship === "family") {
+    return `${s.tip} Allow extra time if traveling with kids.`;
+  }
+  return s.tip;
+}
+
+function dayLabel(i, lang) {
+  return lang === "zh" ? `第 ${i + 1} 天` : `Day ${i + 1}`;
+}
+
+const PLAN_L = {
+  en: {
+    title: "Travel plan",
+    overview: "Overview",
+    transport: "Transportation",
+    hotels: "🏨 Where to Stay — hotels we recommend",
+    daily: "📅 Daily Itinerary",
+    restaurants: "🍽 Restaurants — where to eat",
+    sights: "📍 Places to Visit",
+    budget: "Budget Breakdown",
+    practical: "Practical Notes",
+    morning: "Morning",
+    afternoon: "Afternoon",
+    evening: "Evening",
+    neighborhood: "Neighborhood",
+    price: "Price tier",
+    why: "Why we recommend it",
+    booking: "Booking tip",
+    cuisine: "Cuisine",
+    whyGo: "Why go",
+    time: "Time needed",
+    topPick: "⭐ Top pick for you",
+  },
+  zh: {
+    title: "旅行计划",
+    overview: "概览",
+    transport: "交通",
+    hotels: "🏨 推荐住宿",
+    daily: "📅 每日行程",
+    restaurants: "🍽 推荐餐厅",
+    sights: "📍 推荐景点",
+    budget: "预算明细",
+    practical: "实用信息",
+    morning: "上午",
+    afternoon: "下午",
+    evening: "晚上",
+    neighborhood: "区域",
+    price: "价格",
+    why: "推荐理由",
+    booking: "预订建议",
+    cuisine: "菜系",
+    whyGo: "推荐理由",
+    time: "建议时长",
+    topPick: "⭐ 为您首选",
+  },
+};
 
 function buildDayPlan(i, nights, dest, sights, restaurants, relationship, purpose) {
   const morning = sights[(i * 2) % sights.length];
@@ -399,6 +481,8 @@ function genericDestination(name) {
 }
 
 export function generatePlan(input) {
+  const lang = input.language === "zh" ? "zh" : "en";
+  const L = PLAN_L[lang];
   const relationship = input.relationship || "friends";
   const purpose = input.purpose || "sightseeing";
   const dates = input.dates || "";
@@ -431,9 +515,9 @@ export function generatePlan(input) {
         : dest.hotels.find((h) => h.tier === "$") || dest.hotels[0];
 
   const lines = [];
-  lines.push(`# Travel plan — ${dest.name}`);
+  lines.push(`# ${L.title} — ${dest.name}`);
   lines.push("");
-  lines.push("## Overview");
+  lines.push(`## ${L.overview}`);
   lines.push("");
   lines.push(`- **Trip:** ${relationship}${input.groupSize ? ` (${input.groupSize})` : ` (~${people} people)`}`);
   lines.push(`- **Dates:** ${dates || "(add your dates)"} — about **${nights} night${nights === 1 ? "" : "s"} / ${days} days**`);
@@ -448,7 +532,7 @@ export function generatePlan(input) {
   lines.push(`- **Recommended hotel pick:** ${hotelRec.name} (${hotelRec.tier}) — ${hotelRec.why}`);
   if (notes) lines.push(`- **Your notes:** ${notes}`);
   lines.push("");
-  lines.push("## Transportation");
+  lines.push(`## ${L.transport}`);
   lines.push("");
   lines.push(`**Getting there**`);
   lines.push(`- ${dest.transit.arrive}`);
@@ -457,45 +541,49 @@ export function generatePlan(input) {
   lines.push(`- ${dest.transit.around}`);
   lines.push(`- ${dest.transit.transfer}`);
   lines.push("");
-  lines.push("## Accommodation (3 options)");
+  lines.push(`## ${L.hotels}`);
   lines.push("");
-  lines.push("| Option | Neighborhood | Tier | Why it fits |");
-  lines.push("|--------|--------------|------|------------|");
   for (const h of dest.hotels) {
-    const mark = h.name === hotelRec.name ? " ✅ recommended" : "";
-    lines.push(`| ${h.name}${mark} | ${h.area} | ${h.tier} | ${h.why} |`);
+    const isTop = h.name === hotelRec.name;
+    lines.push(`### ${h.name}${isTop ? ` ${L.topPick}` : ""}`);
+    lines.push(`- **${L.neighborhood}:** ${h.area}`);
+    lines.push(`- **${L.price}:** ${h.tier}`);
+    lines.push(`- **${L.why}:** ${whyHotel(h, input, isTop)}`);
+    lines.push(`- **${L.booking}:** ${isTop ? (lang === "zh" ? "建议先订可退款房型，最匹配您的行程。" : "Book refundable rate first; best match for your trip.") : (lang === "zh" ? "若首选已满可作为备选。" : "Good alternative if top pick is sold out.")}`);
+    lines.push("");
   }
+  lines.push(`**${lang === "zh" ? "住宿预算" : "Stay budget"}:** ~$${split.stay.toLocaleString()} (${split.nightly}/${lang === "zh" ? "晚" : "night"} × ${nights})`);
   lines.push("");
-  lines.push(`Budget for stays: ~$${split.stay.toLocaleString()} total (~$${split.nightly}/night for ${nights} nights).`);
-  lines.push("");
-  lines.push("## Daily Itinerary");
+  lines.push(`## ${L.daily}`);
   lines.push("");
 
-  // Generate one section per calendar day (arrival day through departure day)
   for (let i = 0; i < days; i++) {
     const d = buildDayPlan(i, nights, dest, sights, restaurants, relationship, purpose);
-    lines.push(`### ${dayLabel(i, dates)}`);
-    lines.push(`- **Morning:** ${d.morningText}`);
-    lines.push(`- **Afternoon:** ${d.afternoonText}`);
-    lines.push(`- **Evening:** ${d.eveningText}`);
+    lines.push(`### ${dayLabel(i, lang)}`);
+    lines.push(`- **${L.morning}:** ${d.morningText}`);
+    lines.push(`- **${L.afternoon}:** ${d.afternoonText}`);
+    lines.push(`- **${L.evening}:** ${d.eveningText}`);
     lines.push("");
   }
 
-  lines.push("## Restaurants");
+  lines.push(`## ${L.restaurants}`);
   lines.push("");
-  lines.push("| Spot | Cuisine | Tier | Note |");
-  lines.push("|------|---------|------|------|");
   for (const r of restaurants) {
-    lines.push(`| ${r.name} | ${r.cuisine} | ${r.tier} | ${r.note} |`);
+    lines.push(`### ${r.name}`);
+    lines.push(`- **${L.cuisine}:** ${r.cuisine}`);
+    lines.push(`- **${L.price}:** ${r.tier}`);
+    lines.push(`- **${L.why}:** ${whyRestaurant(r, input)}`);
+    lines.push("");
   }
-  lines.push("");
-  lines.push("## Places to Visit");
+  lines.push(`## ${L.sights}`);
   lines.push("");
   for (const s of sights) {
-    lines.push(`- **${s.name}** — ${s.tip}`);
+    lines.push(`### ${s.name}`);
+    lines.push(`- **${L.whyGo}:** ${whySight(s, input)}`);
+    lines.push(`- **${L.time}:** ${lang === "zh" ? "约 1–2 小时" : "about 1–2 hours"}`);
+    lines.push("");
   }
-  lines.push("");
-  lines.push("## Budget Breakdown");
+  lines.push(`## ${L.budget}`);
   lines.push("");
   lines.push("| Category | Estimate | Notes |");
   lines.push("|----------|----------|-------|");
@@ -506,7 +594,7 @@ export function generatePlan(input) {
   lines.push(`| Buffer | $${split.buffer.toLocaleString()} | Souvenirs / surprises |`);
   lines.push(`| **Total** | **$${budgetTotal.toLocaleString()}** | Matches your stated budget |`);
   lines.push("");
-  lines.push("## Practical Notes");
+  lines.push(`## ${L.practical}`);
   lines.push("");
   lines.push(`- **Visa / entry:** ${dest.visa}`);
   lines.push(`- **Packing:** ${dest.packing}`);
