@@ -1,7 +1,7 @@
-import { generatePlan } from "./planner.js?v=rich2";
-import { researchPlan } from "./research.js?v=rich2";
-import { renderRichPlan } from "./render-rich.js?v=rich2";
-import { getLang, setLang, applyUiLang, t } from "./i18n.js?v=rich2";
+import { generatePlan, buildStructuredPlan } from "./planner.js?v=rich6";
+import { researchPlan } from "./research.js?v=rich6";
+import { renderRichPlan } from "./render-rich.js?v=rich6";
+import { getLang, setLang, applyUiLang, t } from "./i18n.js?v=rich6";
 
 const form = document.getElementById("trip-form");
 const result = document.getElementById("result");
@@ -11,6 +11,7 @@ const spinner = submitBtn.querySelector(".spinner");
 const errorEl = document.getElementById("error");
 const copyBtn = document.getElementById("copy-btn");
 const printBtn = document.getElementById("print-btn");
+const shareBtn = document.getElementById("share-btn");
 const modeSelect = document.getElementById("mode");
 const modelField = document.getElementById("model-field");
 const modelSelect = document.getElementById("model");
@@ -23,7 +24,41 @@ let lastNotice = "";
 let lastTripData = null;
 let lastMode = "ai";
 let lastLang = getLang();
+let lastStructured = null;
+let lastShareUrl = "";
 let hasAiKey = false;
+let aiReachable = false;
+
+function showAiNotice(lang) {
+  let el = document.getElementById("ai-notice");
+  if (!el) {
+    el = document.createElement("p");
+    el.id = "ai-notice";
+    el.className = "ai-notice";
+    modeSelect.closest(".field")?.appendChild(el);
+  }
+  el.hidden = false;
+  el.textContent =
+    lang === "zh"
+      ? "AI 模式已配置，但当前网络无法连接 OpenRouter（国内常见）。请用「网络搜索」或「离线」，或开启可访问 OpenRouter 的网络后再试。"
+      : "AI is configured, but OpenRouter is unreachable from this network (common in China). Use Web research or Offline, or try a network that can reach OpenRouter.";
+}
+
+function hideAiNotice() {
+  const el = document.getElementById("ai-notice");
+  if (el) el.hidden = true;
+}
+
+async function renderPlan(text, data, lang, notice, structured = null) {
+  lastStructured = structured;
+  await renderRichPlan(result, {
+    markdown: text,
+    notice,
+    tripInput: data,
+    lang,
+    structured,
+  });
+}
 
 init();
 
@@ -35,11 +70,13 @@ async function init() {
     const res = await fetch("/api/health");
     const health = await res.json();
     hasAiKey = !!health.hasOpenRouterKey;
+    aiReachable = !!health.openRouterReachable;
 
     if (hasAiKey) {
       document.getElementById("ai-option").hidden = false;
       modelField.hidden = false;
       await loadModels(health.model);
+      if (!aiReachable) showAiNotice(getLang());
     }
 
     const savedMode = localStorage.getItem(MODE_STORAGE);
@@ -47,6 +84,8 @@ async function init() {
     else if (savedMode === "offline") modeSelect.value = "offline";
     else if (savedMode === "research") modeSelect.value = "research";
     else modeSelect.value = hasAiKey ? "ai" : "research";
+
+    if (savedMode === "ai" && !hasAiKey) modeSelect.value = "research";
   } catch {
     modeSelect.value = "research";
   }
@@ -54,12 +93,46 @@ async function init() {
   modeSelect.addEventListener("change", () => {
     localStorage.setItem(MODE_STORAGE, modeSelect.value);
     modelField.hidden = modeSelect.value !== "ai" || !hasAiKey;
+    if (modeSelect.value === "ai" && hasAiKey && !aiReachable) showAiNotice(getLang());
+    else hideAiNotice();
   });
   modelField.hidden = modeSelect.value !== "ai" || !hasAiKey;
 
   modelSelect?.addEventListener("change", () => {
     localStorage.setItem(MODEL_STORAGE, modelSelect.value);
   });
+
+  const shareId = new URLSearchParams(location.search).get("share");
+  if (shareId) await loadSharedPlan(shareId);
+}
+
+async function loadSharedPlan(id) {
+  const lang = getLang();
+  result.innerHTML = `<div class="loading-state"><span class="spinner"></span><p>${lang === "zh" ? "加载分享的行程…" : "Loading shared plan…"}</p></div>`;
+  try {
+    const res = await fetch(`/api/share/${encodeURIComponent(id)}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Not found");
+
+    lastPlanText = json.plan;
+    lastNotice = json.notice || (lang === "zh" ? "分享的行程" : "Shared plan");
+    lastTripData = json.tripInput || {};
+    lastLang = json.lang || lang;
+    lastShareUrl = `${location.origin}${location.pathname}?share=${id}`;
+
+    if (json.tripInput?.relationship) form.relationship.value = json.tripInput.relationship;
+    if (json.tripInput?.dates) form.dates.value = json.tripInput.dates;
+    if (json.tripInput?.budget) form.budget.value = json.tripInput.budget;
+    if (json.tripInput?.purpose) form.purpose.value = json.tripInput.purpose;
+    if (json.tripInput?.destination) form.destination.value = json.tripInput.destination;
+
+    await renderPlan(lastPlanText, lastTripData, lastLang, lastNotice, json.structured || null);
+    copyBtn.disabled = false;
+    printBtn.disabled = false;
+    shareBtn.disabled = false;
+  } catch (err) {
+    result.innerHTML = `<div class="placeholder"><h3>${lang === "zh" ? "无法加载分享" : "Could not load share"}</h3><p>${escapeHtml(err.message)}</p></div>`;
+  }
 }
 
 function setupLangToggle() {
@@ -80,8 +153,11 @@ async function onLangChange(lang) {
 
   try {
     let text = lastPlanText;
+    let structured = lastStructured;
     if (lastMode === "offline") {
-      text = generatePlan({ ...lastTripData, language: lang });
+      const payload = { ...lastTripData, language: lang };
+      text = generatePlan(payload);
+      structured = buildStructuredPlan(payload);
     } else if (hasAiKey) {
       const res = await fetch("/api/translate-plan", {
         method: "POST",
@@ -95,12 +171,7 @@ async function onLangChange(lang) {
 
     lastPlanText = text;
     lastLang = lang;
-    await renderRichPlan(result, {
-      markdown: text,
-      notice: lastNotice,
-      tripInput: lastTripData,
-      lang,
-    });
+    await renderPlan(text, lastTripData, lang, lastNotice, structured);
   } catch (err) {
     result.innerHTML = `<div class="placeholder"><p>${escapeHtml(err.message)}</p></div>`;
   }
@@ -151,6 +222,7 @@ form.addEventListener("submit", async (e) => {
   lastMode = mode;
   lastLang = lang;
   lastTripData = { ...data };
+  lastShareUrl = "";
 
   setLoading(true);
   result.innerHTML = `
@@ -162,20 +234,23 @@ form.addEventListener("submit", async (e) => {
   try {
     let text;
     let notice = "";
+    let structured = null;
 
     if (mode === "ai") ({ text, notice } = await runAi(data));
     else if (mode === "research") ({ text, notice } = await runResearch(data));
     else {
       await new Promise((r) => requestAnimationFrame(() => r()));
       text = generatePlan(data);
+      structured = buildStructuredPlan(data);
       if (!text) throw new Error("Empty plan");
     }
 
     lastPlanText = text;
     lastNotice = notice;
-    await renderRichPlan(result, { markdown: text, notice, tripInput: data, lang });
+    await renderPlan(text, data, lang, notice, structured);
     copyBtn.disabled = false;
     printBtn.disabled = false;
+    shareBtn.disabled = false;
   } catch (err) {
     result.innerHTML = `
       <div class="placeholder">
@@ -185,6 +260,7 @@ form.addEventListener("submit", async (e) => {
       </div>`;
     copyBtn.disabled = true;
     printBtn.disabled = true;
+    shareBtn.disabled = true;
   } finally {
     setLoading(false);
   }
@@ -272,6 +348,41 @@ copyBtn.addEventListener("click", async () => {
 });
 
 printBtn.addEventListener("click", () => window.print());
+
+shareBtn.addEventListener("click", async () => {
+  if (!lastPlanText) return;
+  const lang = getLang();
+  shareBtn.disabled = true;
+  try {
+    let url = lastShareUrl;
+    if (!url) {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: lastPlanText,
+          tripInput: lastTripData,
+          notice: lastNotice,
+          lang: lastLang || lang,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      url = json.url || `${location.origin}${location.pathname}?share=${json.id}`;
+      lastShareUrl = url;
+      history.replaceState(null, "", `?share=${json.id}`);
+    }
+    await navigator.clipboard.writeText(url);
+    shareBtn.textContent = t("shareCopied");
+    setTimeout(() => (shareBtn.textContent = t("share")), 2500);
+  } catch (err) {
+    shareBtn.textContent = lang === "zh" ? "分享失败" : "Share failed";
+    setTimeout(() => (shareBtn.textContent = t("share")), 2000);
+    console.error(err);
+  } finally {
+    shareBtn.disabled = false;
+  }
+});
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({

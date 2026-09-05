@@ -2,10 +2,11 @@
  * Rich plan renderer — hero, cards with images/links, day summary grid.
  */
 
-import { fetchDestinationMedia, fetchPlaceImage, bookingLinks, videoLinks } from "./media.js?v=rich2";
-import { t } from "./i18n.js?v=rich2";
+import { fetchDestinationMedia, fetchPlaceImage, bookingLinks, videoLinks } from "./media.js?v=rich6";
+import { t } from "./i18n.js?v=rich6";
+import { buildPlanModel, buildPlanDashboard } from "./plan-dashboard.js?v=rich6";
 
-export async function renderRichPlan(container, { markdown, notice, tripInput, lang = "en" }) {
+export async function renderRichPlan(container, { markdown, notice, tripInput, lang = "en", structured }) {
   const destName =
     tripInput.destination ||
     (markdown.match(/^#\s*.+?[—–-]\s*(.+)$/m)?.[1]?.trim()) ||
@@ -25,7 +26,9 @@ export async function renderRichPlan(container, { markdown, notice, tripInput, l
   }
 
   wrap.appendChild(buildHero(media, destName, tripInput, lang));
-  wrap.appendChild(buildDaySummaryFromMarkdown(markdown, lang));
+
+  const planModel = buildPlanModel(markdown, tripInput, structured);
+  wrap.appendChild(buildPlanDashboard(planModel, tripInput, lang));
 
   const body = document.createElement("div");
   body.className = "plan-body";

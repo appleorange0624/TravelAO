@@ -1,5 +1,7 @@
 import express from "express";
 import path from "node:path";
+import fs from "node:fs";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { marked } from "marked";
@@ -11,6 +13,9 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+const SHARES_DIR = path.join(__dirname, "data", "shares");
+
+if (!fs.existsSync(SHARES_DIR)) fs.mkdirSync(SHARES_DIR, { recursive: true });
 
 const OPENROUTER_KEY = (process.env.OPENROUTER_API_KEY || "").trim();
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
@@ -77,11 +82,24 @@ Trip: relationship=${relationship}, group=${groupSize}, dates=${dates}, budget=$
 Generate the full plan now.`;
 }
 
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", async (_req, res) => {
+  let openRouterReachable = false;
+  if (OPENROUTER_KEY) {
+    try {
+      const r = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: { Authorization: `Bearer ${OPENROUTER_KEY}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      openRouterReachable = r.ok;
+    } catch {
+      openRouterReachable = false;
+    }
+  }
   res.json({
     ok: true,
     modes: OPENROUTER_KEY ? ["ai", "research", "offline"] : ["research", "offline"],
     hasOpenRouterKey: !!OPENROUTER_KEY,
+    openRouterReachable,
     model: OPENROUTER_MODEL,
     provider: OPENROUTER_KEY ? "openrouter" : "wikivoyage+wikipedia",
   });
@@ -216,6 +234,34 @@ app.post("/api/translate-plan", async (req, res) => {
     res.json({ plan: text });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/share", (req, res) => {
+  const body = req.body || {};
+  if (!body.plan && !body.markdown) {
+    return res.status(400).json({ error: "Nothing to share" });
+  }
+  const id = crypto.randomBytes(6).toString("hex");
+  const payload = {
+    id,
+    createdAt: new Date().toISOString(),
+    plan: body.plan || body.markdown,
+    tripInput: body.tripInput || {},
+    notice: body.notice || "",
+    lang: body.lang || "en",
+  };
+  fs.writeFileSync(path.join(SHARES_DIR, `${id}.json`), JSON.stringify(payload));
+  res.json({ id, url: `${PUBLIC_URL}/?share=${id}` });
+});
+
+app.get("/api/share/:id", (req, res) => {
+  const file = path.join(SHARES_DIR, `${req.params.id}.json`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: "Shared plan not found" });
+  try {
+    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+  } catch {
+    res.status(500).json({ error: "Could not read shared plan" });
   }
 });
 

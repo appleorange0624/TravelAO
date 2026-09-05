@@ -11,6 +11,7 @@ node_modules/
 # Secrets / personal
 .env
 .env.local
+data/shares/
 *.key
 secrets/
 bookings/

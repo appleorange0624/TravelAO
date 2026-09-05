@@ -3,9 +3,13 @@
  * Generates a full Markdown plan from form inputs + destination knowledge.
  */
 
+import { parseTripDates, splitPlace } from "./trip-dates.js?v=rich6";
+
 const DESTINATIONS = {
   kyoto: {
     name: "Kyoto, Japan",
+    city: "Kyoto",
+    country: "Japan",
     vibe: "temples, gardens, food, and walkable neighborhoods",
     base: "Higashiyama / Gion",
     transit: {
@@ -39,6 +43,8 @@ const DESTINATIONS = {
   },
   tokyo: {
     name: "Tokyo, Japan",
+    city: "Tokyo",
+    country: "Japan",
     vibe: "neighborhoods, food, neon nights, and endless day trips",
     base: "Shinjuku or Shibuya",
     transit: {
@@ -72,6 +78,8 @@ const DESTINATIONS = {
   },
   paris: {
     name: "Paris, France",
+    city: "Paris",
+    country: "France",
     vibe: "museums, cafés, riverside walks, and late dinners",
     base: "Le Marais or Saint-Germain",
     transit: {
@@ -105,6 +113,8 @@ const DESTINATIONS = {
   },
   bali: {
     name: "Bali, Indonesia",
+    city: "Ubud",
+    country: "Indonesia",
     vibe: "temples, beaches, rice terraces, and slow mornings",
     base: "Ubud (culture) or Seminyak/Canggu (beach)",
     transit: {
@@ -138,6 +148,8 @@ const DESTINATIONS = {
   },
   nyc: {
     name: "New York City, USA",
+    city: "New York City",
+    country: "USA",
     vibe: "neighborhoods, museums, food, and late nights",
     base: "Midtown or Downtown (SoHo / West Village)",
     transit: {
@@ -171,6 +183,8 @@ const DESTINATIONS = {
   },
   barcelona: {
     name: "Barcelona, Spain",
+    city: "Barcelona",
+    country: "Spain",
     vibe: "Gaudí, beaches, tapas, and late evenings",
     base: "Eixample or Gothic Quarter",
     transit: {
@@ -445,8 +459,11 @@ function buildDayPlan(i, nights, dest, sights, restaurants, relationship, purpos
 
 function genericDestination(name) {
   const label = name && name.trim() ? name.trim() : "Your chosen destination";
+  const place = splitPlace(label);
   return {
     name: label,
+    city: place.city || label,
+    country: place.country || "",
     vibe: "a mix of local sights, food, and neighborhood walks",
     base: "a central, walkable neighborhood near transit",
     transit: {
@@ -506,6 +523,11 @@ export function generatePlan(input) {
   const sights = pickSights(dest, relationship, purpose, days);
   const restaurants = pickRestaurants(dest, relationship, purpose);
   const split = budgetSplit(budgetTotal, nights, people);
+  const place = {
+    city: dest.city || splitPlace(dest.name).city,
+    country: dest.country || splitPlace(dest.name).country,
+  };
+  const dateList = parseTripDates(dates, days, lang);
 
   const hotelRec =
     relationship === "couple" || /anniversary|romantic/i.test(purpose)
@@ -528,6 +550,8 @@ export function generatePlan(input) {
   } else {
     lines.push(`- **Destination:** ${dest.name} — ${dest.vibe}`);
   }
+  if (place.country) lines.push(`- **Country:** ${place.country}`);
+  if (place.city) lines.push(`- **City:** ${place.city}`);
   lines.push(`- **Base neighborhood:** ${dest.base}`);
   lines.push(`- **Recommended hotel pick:** ${hotelRec.name} (${hotelRec.tier}) — ${hotelRec.why}`);
   if (notes) lines.push(`- **Your notes:** ${notes}`);
@@ -559,7 +583,8 @@ export function generatePlan(input) {
 
   for (let i = 0; i < days; i++) {
     const d = buildDayPlan(i, nights, dest, sights, restaurants, relationship, purpose);
-    lines.push(`### ${dayLabel(i, lang)}`);
+    const dateBit = dateList[i]?.iso ? ` — ${dateList[i].dateLabel}` : "";
+    lines.push(`### ${dayLabel(i, lang)}${dateBit}`);
     lines.push(`- **${L.morning}:** ${d.morningText}`);
     lines.push(`- **${L.afternoon}:** ${d.afternoonText}`);
     lines.push(`- **${L.evening}:** ${d.eveningText}`);
@@ -615,4 +640,192 @@ export function generatePlan(input) {
   lines.push("");
 
   return lines.join("\n");
+}
+
+/** Structured plan for dashboard — used by offline mode (and merged with markdown parse for AI/research) */
+export function buildStructuredPlan(input) {
+  const lang = input.language === "zh" ? "zh" : "en";
+  const L = PLAN_L[lang];
+  const relationship = input.relationship || "friends";
+  const purpose = input.purpose || "sightseeing";
+  const dates = input.dates || "";
+  const notes = input.notes || "";
+  const budgetTotal = parseBudget(input.budget);
+  const nights = parseNights(dates);
+  const people = parsePeople(input.groupSize, relationship);
+  const days = nights + 1;
+
+  let destKey = normalizeDest(input.destination);
+  if (!destKey && (!input.destination || !String(input.destination).trim())) {
+    destKey = normalizeDest(suggestDestinations(relationship, purpose, budgetTotal)[0]);
+  }
+  const dest = destKey ? DESTINATIONS[destKey] : genericDestination(input.destination);
+  const sights = pickSights(dest, relationship, purpose, days);
+  const restaurants = pickRestaurants(dest, relationship, purpose);
+  const split = budgetSplit(budgetTotal, nights, people);
+
+  const hotelRec =
+    relationship === "couple" || /anniversary|romantic/i.test(purpose)
+      ? dest.hotels.find((h) => h.tier === "$$$") || dest.hotels[0]
+      : relationship === "family"
+        ? dest.hotels.find((h) => h.tier === "$$") || dest.hotels[0]
+        : dest.hotels.find((h) => h.tier === "$") || dest.hotels[0];
+
+  const slots = [
+    { key: "morning", label: L.morning, time: "08:00–12:00" },
+    { key: "afternoon", label: L.afternoon, time: "12:00–17:00" },
+    { key: "evening", label: L.evening, time: "18:00–22:00" },
+  ];
+
+  const place = {
+    city: dest.city || splitPlace(dest.name).city,
+    country: dest.country || splitPlace(dest.name).country,
+  };
+  const dateList = parseTripDates(dates, days, lang);
+  const leaveLabel = lang === "zh" ? "前往机场/车站" : "Departure transfer to airport/station";
+
+  const schedule = [];
+  const daySummaries = [];
+  for (let i = 0; i < days; i++) {
+    const d = buildDayPlan(i, nights, dest, sights, restaurants, relationship, purpose);
+    const dayTitle = dayLabel(i, lang);
+    const dayNum = String(i + 1);
+    const isFirst = i === 0;
+    const isLast = i === nights;
+    const mainDest = isFirst
+      ? sights[0]?.name || dest.base
+      : sights[(i * 2) % sights.length]?.name || dest.base;
+    const dayTransport = isFirst ? dest.transit.arrive : isLast ? leaveLabel : dest.transit.around;
+    const slotData = [
+      { slot: slots[0], text: d.morningText, transport: isFirst ? dest.transit.arrive : dest.transit.around, loc: isFirst ? hotelRec.name : sights[(i * 2) % sights.length]?.name },
+      { slot: slots[1], text: d.afternoonText, transport: dest.transit.around, loc: sights[(i * 2 + 1) % sights.length]?.name || dest.base },
+      { slot: slots[2], text: d.eveningText, transport: isLast ? leaveLabel : dest.transit.around, loc: d.dinner?.name || dest.base },
+    ];
+    const daySlots = [];
+    for (const { slot, text, transport, loc } of slotData) {
+      const row = {
+        day: dayTitle,
+        dayNum,
+        date: dateList[i].dateLabel,
+        dateIso: dateList[i].iso,
+        country: place.country,
+        city: place.city,
+        time: slot.time,
+        timeLabel: slot.label,
+        location: loc || hotelRec.name,
+        activity: text.replace(/\*\*/g, ""),
+        transport,
+        accommodation: hotelRec.name,
+        mainDestination: mainDest,
+        category: slot.key,
+      };
+      schedule.push(row);
+      daySlots.push(row);
+    }
+    daySummaries.push({
+      dayNum: i + 1,
+      day: dayTitle,
+      date: dateList[i].dateLabel,
+      dateIso: dateList[i].iso,
+      country: place.country,
+      city: place.city,
+      mainDestination: mainDest,
+      accommodation: hotelRec.name,
+      transportation: dayTransport,
+      slots: daySlots,
+    });
+  }
+
+  const accommodation = dest.hotels.map((h) => {
+    const isTop = h.name === hotelRec.name;
+    const why = whyHotel(h, input, isTop);
+    return {
+      id: `hotel-${h.name}`,
+      type: "hotel",
+      name: h.name,
+      area: h.area,
+      tier: h.tier,
+      tierNum: (h.tier.match(/\$/g) || []).length || 2,
+      why,
+      isTop,
+      purposeTags: inferTagsFromText(why + " " + h.name + " " + h.area),
+    };
+  });
+
+  const restaurantItems = restaurants.map((r) => ({
+    id: `restaurant-${r.name}`,
+    type: "restaurant",
+    name: r.name,
+    area: r.cuisine,
+    tier: r.tier,
+    tierNum: (r.tier.match(/\$/g) || []).length || 2,
+    why: whyRestaurant(r, input),
+    isTop: false,
+    purposeTags: inferTagsFromText(r.note + " " + r.cuisine + " " + r.name),
+  }));
+
+  const entertainment = sights.map((s) => ({
+    id: `sight-${s.name}`,
+    type: "sight",
+    name: s.name,
+    area: dest.base,
+    tier: "$$",
+    tierNum: 2,
+    why: whySight(s, input),
+    isTop: false,
+    purposeTags: inferTagsFromText(s.tip + " " + s.name),
+  }));
+
+  const transport = [
+    { id: "transport-0", type: "transport", name: lang === "zh" ? "到达" : "Getting there", description: dest.transit.arrive, label: lang === "zh" ? "到达" : "Getting there", tier: "$$", tierNum: 2, why: dest.transit.arrive, purposeTags: ["general"] },
+    { id: "transport-1", type: "transport", name: lang === "zh" ? "市内交通" : "Getting around", description: dest.transit.around, label: lang === "zh" ? "市内交通" : "Getting around", tier: "$", tierNum: 1, why: dest.transit.around, purposeTags: ["general"] },
+    { id: "transport-2", type: "transport", name: lang === "zh" ? "转乘提示" : "Transfers", description: dest.transit.transfer, label: lang === "zh" ? "转乘" : "Transfers", tier: "$", tierNum: 1, why: dest.transit.transfer, purposeTags: ["general"] },
+  ];
+
+  const budget = [
+    { category: lang === "zh" ? "交通" : "Transport", estimate: `$${split.transport.toLocaleString()}`, notes: lang === "zh" ? "航班/火车 + 当地交通" : "Flights/trains + local transit" },
+    { category: lang === "zh" ? "住宿" : "Accommodation", estimate: `$${split.stay.toLocaleString()}`, notes: `${nights} ${lang === "zh" ? "晚" : "nights"}` },
+    { category: lang === "zh" ? "餐饮" : "Food", estimate: `$${split.food.toLocaleString()}`, notes: lang === "zh" ? "每日用餐" : "Daily meals" },
+    { category: lang === "zh" ? "活动" : "Activities", estimate: `$${split.activities.toLocaleString()}`, notes: lang === "zh" ? "门票与体验" : "Tickets & experiences" },
+    { category: lang === "zh" ? "备用" : "Buffer", estimate: `$${split.buffer.toLocaleString()}`, notes: lang === "zh" ? "纪念品等" : "Souvenirs etc." },
+    { category: lang === "zh" ? "总计" : "Total", estimate: `$${budgetTotal.toLocaleString()}`, notes: input.budget || "" },
+  ];
+
+  return {
+    meta: {
+      title: `${L.title} — ${dest.name}`,
+      destination: dest.name,
+      dates,
+      budget: input.budget || `$${budgetTotal.toLocaleString()}`,
+      purpose,
+      relationship,
+      groupSize: input.groupSize || "",
+      notes,
+      hotelPick: hotelRec.name,
+      city: place.city,
+      country: place.country,
+    },
+    days: daySummaries,
+    schedule,
+    accommodation,
+    restaurants: restaurantItems,
+    transport,
+    entertainment,
+    budget,
+    lang,
+  };
+}
+
+function inferTagsFromText(text) {
+  const lower = String(text || "").toLowerCase();
+  const tags = new Set(["general"]);
+  if (/romantic|couple|anniversary|boutique|sunset/.test(lower)) tags.add("romantic");
+  if (/family|kid|child|safe/.test(lower)) tags.add("family");
+  if (/friend|lively|fun|bar/.test(lower)) tags.add("friends");
+  if (/food|restaurant|cuisine|ramen|dining/.test(lower)) tags.add("food");
+  if (/relax|spa|quiet|onsen/.test(lower)) tags.add("relaxation");
+  if (/museum|temple|historic|sight|landmark/.test(lower)) tags.add("sightseeing");
+  if (/budget|cheap|value/.test(lower)) tags.add("budget");
+  if (/luxury|upscale|fine|splurge/.test(lower)) tags.add("luxury");
+  return [...tags];
 }
